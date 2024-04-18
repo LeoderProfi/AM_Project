@@ -5,21 +5,18 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 # Time parameters
-dt = 0.0001 # Time step size
-num_steps = 10000  # Number of time steps
-
-
+dt = 0.01 # Time step size
+num_steps = 100  # Number of time steps
 
 def fire(dimension, n_cells, delta, Solution, fire_starting_point, fire_radius):
     #check dimensions:
     if dimension == 1:
-        fire_starting_point = fire_starting_point[0] #Convert the starting point to a scalar
         ST, SG = np.split(Solution, 2) #Split the solution into the two components
-        fire_starting_index_x = int(fire_starting_point / delta) #Find the index of the starting point of the fire
+        fire_starting_index_x = int(fire_starting_point[0] / delta[0]) #Find the index of the starting point of the fire
         X = np.arange(n_cells+1) #Create an array of the x-values
         distance = np.abs(X - fire_starting_index_x) #Calculate the distance from the starting point in which the fire should be active
-        mask = distance <= fire_radius/delta #Create a mask for the cells that should be affected by the fire
-        ST[mask] = 0.5 * ST[mask] #Set the Tree concentration of the cells affected by the fire to 0
+        mask = distance <= fire_radius/delta[0] #Create a mask for the cells that should be affected by the fire
+        ST[mask] = 0.0 * ST[mask] #Set the Tree concentration of the cells affected by the fire to 0
         SG[mask] = 0.0 #Set the gras concentration of the cells affected by the fire to 0
         return np.concatenate((ST, SG))
     elif dimension == 2:
@@ -45,25 +42,25 @@ def Initialisation1D():
     dimension = 1
     p = [0.083, 0.0, 0.638, 0.042, 8, 0.0]
     #p_1 = 0.083; p_2 = 0.014; p_3 = 0.638; p_4 = 0.042; p_5 = 8; p_6 = 0.278
-    L = 10000
+    L = 100
     n = 100
     x_min = 0
     x_max = L
-    delta = (x_max - x_min) / n
+    delta = np.zeros(dimension)
+    delta[0] = (x_max - x_min) / n
     return dimension, p, L, n, x_min, x_max, delta
 
 def Initialisation2D():
     dimension = 2
     p = [0.083, 0.014, 0.638, 0.042, 8, 0.278]
-    L = 1000
-    n = 20
+    L = 10000
+    n = 50
     xy_min = [0, 0]
     xy_max = [L, L]
     delta = np.zeros(dimension)
     delta[0] = (xy_max[0] - xy_min[0]) / n
     delta[1] = (xy_max[1] - xy_min[1]) / n
     return dimension, p, L, n, xy_min, xy_max, delta
-
 
 def solve_time_dependent_equation(T_initial, G_initial, dt, num_steps, p, delta, n):
     def f_T(T, G, p, delta, n):
@@ -172,7 +169,7 @@ def f(T, G, p, delta, n):
 def J(T, G, p, delta, n):
     def J_eq_1_T(T, G, p, delta, n):
         p_1, p_2, p_3, p_4, p_5, p_6 = p
-        delta_x = delta
+        delta_x = delta[0]
         # Generate the Jacobian matrix
         jac_matrix = np.zeros((n+1, n+1))
 
@@ -195,7 +192,7 @@ def J(T, G, p, delta, n):
 
     def J_eq_1_G(T, G, p, delta, n):
         p_1, p_2, p_3, p_4, p_5, p_6 = p
-        delta_x = delta
+        delta_x = delta[0]
         # Generate the Jacobian matrix
         jac_matrix = np.zeros((n+1, n+1))
         for i in range(0, n+1):
@@ -204,7 +201,7 @@ def J(T, G, p, delta, n):
 
     def J_eq_2_T(T, G, p, delta, n):
         p_1, p_2, p_3, p_4, p_5, p_6 = p
-        delta_x = delta
+        delta_x = delta[0]
         # Generate the Jacobian matrix
         jac_matrix = np.zeros((n+1, n+1))
         for i in range(0, n+1):
@@ -213,7 +210,7 @@ def J(T, G, p, delta, n):
 
     def J_eq_2_G(T, G, p, delta, n):
         p_1, p_2, p_3, p_4, p_5, p_6 = p
-        delta_x = delta
+        delta_x = delta[0]
         # Generate the Jacobian matrix
         jac_matrix = np.zeros((n+1, n+1))
 
@@ -331,15 +328,11 @@ def plot_solution_2D(T_solution, G_solution, n):
     #plt.savefig('2D_n100')
     plt.show()
 
-
-dimension, p, L, n, x_min, x_max, delta = Initialisation1D()
-
-fire_starting_point = [L/2, L/2]
-fire_radius = [0.1*L]
-#simulation_with_fire(Initialisation1D, plot_solution1D, fire, fire_starting_point, fire_radius)
-
-
 dimension, p, L, n, xy_min, xy_max, delta = Initialisation2D()
+
+#fire_starting_point = [L/2, L/2]
+#fire_radius = [0.1*L]
+#simulation_with_fire(Initialisation1D, plot_solution1D, fire, fire_starting_point, fire_radius)
 
 def f_2D(T, G, p, delta, n):
     p_1, p_2, p_3, p_4, p_5, p_6 = p
@@ -507,8 +500,6 @@ def J_2D(T, G, p, delta, n):
     
     return Jac
 
-
-
 def newton_raphson_system2D(f, J, initial_guess, tol=1e-6, max_iter=100):
     for i in range(max_iter):
         # Split initial guess into T and G
@@ -546,7 +537,9 @@ def initial_guess_2D(xy_min, xy_max, n):
         initial_guess[i] = 0.5 + 1* np.cos(variating[i-(n+1)*(n+1)])
     return initial_guess
 
-def simulation_with_fire(Initialisation1D, Initialisation2D, plot_solution1D, plot_solution_2D, fire, fire_starting_point = [5000,5000], fire_radius = [2000], dimension = 1):
+
+
+def simulation_with_fire(Initialisation1D, Initialisation2D, plot_solution1D, plot_solution_2D, fire, fire_starting_point = [0.5*L,0.5*L], fire_radius = [0.1*L], dimension = 1):
     #Check dimension:
     if dimension == 1:
 
@@ -554,13 +547,8 @@ def simulation_with_fire(Initialisation1D, Initialisation2D, plot_solution1D, pl
         dimension, p, L, n, x_min, x_max, delta = Initialisation1D()
         #Initial guess
         initial_guess = initial_guess_func(x_min, x_max, n)
-        T_initial, G_initial = np.split(initial_guess, 2)
-        plot_solution1D(T_initial, G_initial, n, x_min, x_max)
-
-
         #Solve the system
         solution = newton_raphson_system(f, J, p, delta, n, initial_guess)
-        #solution = initial_guess
         #Split solution into T and G
         T_solution, G_solution = np.split(solution, 2)
         #Plot the results
@@ -570,7 +558,10 @@ def simulation_with_fire(Initialisation1D, Initialisation2D, plot_solution1D, pl
             solution_with_fire = fire(dimension, n, delta, solution, fire_starting_point, fire_rad)
             # Split solution into T and G
             T_afterfire, G_afterfire = np.split(solution_with_fire, 2)
-            T_values, G_values = solve_time_dependent_equation(T_afterfire, G_afterfire, dt, num_steps, p, delta, n)
+
+            plot_solution1D(T_afterfire, G_afterfire, n, x_min, x_max)
+            T_values, G_values = solve_time_dependent_equation(T_afterfire, G_afterfire, dt, num_steps, p, delta[0], n)
+            
             x = np.linspace(x_min, x_max, n+1)
             # Plot the evolution of T and G over time on the same plot
             def update(frame):
@@ -604,16 +595,13 @@ def simulation_with_fire(Initialisation1D, Initialisation2D, plot_solution1D, pl
 
         for fire_rad in fire_radius:
     
-
             solution_with_fire = fire(dimension, n, delta, solution, fire_starting_point, fire_radius)
             # Split solution into T and G
             T_afterfire, G_afterfire = np.split(solution_with_fire, 2)
             plot_solution_2D(T_afterfire, G_afterfire, n)
 
-
     else:
         print("Error: Something went wrong with the dimensions in the simulation_with_fire function.")
 
 
-simulation_with_fire(Initialisation1D, Initialisation2D, plot_solution1D, plot_solution_2D, fire, fire_starting_point, fire_radius, dimension = 1)
-
+simulation_with_fire(Initialisation1D, Initialisation2D, plot_solution1D, plot_solution_2D, fire)
