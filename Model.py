@@ -1,14 +1,7 @@
-
 import numpy as np 
 from scipy.sparse.linalg import spsolve
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-
-# Time parameters
-dt = 0.0001 # Time step size
-num_steps = 10000  # Number of time steps
-
-
 
 def fire(dimension, n_cells, delta, Solution, fire_starting_point, fire_radius):
     #check dimensions:
@@ -40,7 +33,7 @@ def fire(dimension, n_cells, delta, Solution, fire_starting_point, fire_radius):
     else:
         print("Error: Something went wrong with the dimensions in the fire function.")
 
-#Initialisation of the parameters
+
 def Initialisation1D():
     dimension = 1
     p = [0.083, 0.0, 0.638, 0.042, 8, 0.0]
@@ -319,7 +312,6 @@ def plot_solution_2D(T_solution, G_solution, n):
     plt.ylabel('y-axis')
     plt.xlabel('x-axis')
     plt.tight_layout()
-    #plt.savefig('2D_n100')
     plt.show()
 
     plt.figure()
@@ -332,14 +324,131 @@ def plot_solution_2D(T_solution, G_solution, n):
     plt.show()
 
 
-dimension, p, L, n, x_min, x_max, delta = Initialisation1D()
-
-fire_starting_point = [L/2, L/2]
-fire_radius = [0.1*L]
-#simulation_with_fire(Initialisation1D, plot_solution1D, fire, fire_starting_point, fire_radius)
 
 
-dimension, p, L, n, xy_min, xy_max, delta = Initialisation2D()
+
+
+def solve_time_dependent_equation2D(T_initial, G_initial, dt, num_steps):
+    def f_T2D(T, G, p, delta, n):
+        delta_x = delta[0]
+        delta_y = delta[1]
+        p_1, p_2, p_3, p_4, p_5, p_6 = p
+        equations_T = np.zeros((n+1)*(n+1))
+        for i in range((n+1)*(n+1)):
+            if i == 0 : #top left corner
+                equations_T[i] = T[i] * (1 - T[i]) - p_1 * T[i] + (2*T[i+1] + 2*T[i+(n+1)] - 4 * T[i]) / delta_x**2 - p_2 * T[i] * G[i]
+            elif i == n+1: #top right corner
+                equations_T[i] = T[i] * (1 - T[i]) - p_1 * T[i] + (2*T[i-1] + 2*T[i+(n+1)] - 4 * T[i]) / delta_x**2 - p_2 * T[i] * G[i]
+            elif i == n*(n+1): #bottom left corner
+                equations_T[i] = T[i] * (1 - T[i]) - p_1 * T[i] + (2*T[i+1] + 2*T[i-(n+1)] - 4 * T[i]) / delta_x**2 - p_2 * T[i] * G[i]
+            elif i == n*(n+1) + n: #bottom right corner
+                equations_T[i] = T[i] * (1 - T[i]) - p_1 * T[i] + (2*T[i-1] + 2*T[i-(n+1)] - 4 * T[i]) / delta_x**2 - p_2 * T[i] * G[i]
+            elif i < n+1: #upper boundary
+                equations_T[i] = T[i] * (1 - T[i]) - p_1 * T[i] + (T[i+1] + T[i-1] + 2*T[i+(n+1)] - 4 * T[i]) / delta_x**2 - p_2 * T[i] * G[i]
+            elif i % (n+1) == 0: #left boundary
+                equations_T[i] = T[i] * (1 - T[i]) - p_1 * T[i] + (2*T[i+1] +  T[i-(n+1)] + T[i+(n+1)] - 4 * T[i]) / delta_x**2 - p_2 * T[i] * G[i]
+            elif i % (n+1) == n: #right boundary
+                equations_T[i] = T[i] * (1 - T[i]) - p_1 * T[i] + (2*T[i-1] + T[i-(n+1)] + T[i+(n+1)] - 4 * T[i]) / delta_x**2 - p_2 * T[i] * G[i]
+            elif i > n*(n+1): #lower boundary
+                equations_T[i] = T[i] * (1 - T[i]) - p_1 * T[i] + (T[i+1] + T[i-1] + 2*T[i-(n+1)] - 4 * T[i]) / delta_x**2 - p_2 * T[i] * G[i]
+            else:
+                equations_T[i] = T[i] * (1 - T[i]) - p_1 * T[i] + (T[i+1] + T[i-1] + T[i-(n+1)] + T[i+(n+1)] - 4 * T[i]) / delta_x**2 - p_2 * T[i] * G[i]
+
+        return np.array(equations_T)
+
+    def f_G2D(T, G, p, delta, n):
+        delta_x = delta[0]
+        delta_y = delta[1]
+        p_1, p_2, p_3, p_4, p_5, p_6 = p
+        equations_G = np.zeros((n+1)*(n+1))
+        for i in range((n+1)*(n+1)):
+            if i == 0 : #top left corner
+                equations_G[i] = p_3 * G[i] * (1 - G[i]) - p_4 * G[i] + p_5 * (2*G[i+1] + 2*G[i+(n+1)] - 4 * T[i]) / delta_x**2 - p_6 * T[i] * G[i]
+            elif i == n+1: #top right corner
+                equations_G[i] = p_3 * G[i] * (1 - G[i]) - p_4 * G[i] + p_5 * (2*G[i-1] + 2*G[i+(n+1)] - 4 * T[i]) / delta_x**2 - p_6 * T[i] * G[i]
+            elif i == n*(n+1): #bottom left corner
+                equations_G[i] = p_3 * G[i] * (1 - G[i]) - p_4 * G[i] + p_5 * (2*G[i+1] + 2*G[i-(n+1)] - 4 * T[i]) / delta_x**2 - p_6 * T[i] * G[i]
+            elif i == n*(n+1) + n: #bottom right corner
+                equations_G[i] = p_3 * G[i] * (1 - G[i]) - p_4 * G[i] + p_5 * (2*G[i-1] + 2*G[i-(n+1)] - 4 * T[i]) / delta_x**2 - p_6 * T[i] * G[i]
+            elif i < n+1: #upper boundary
+                equations_G[i] = p_3 * G[i] * (1 - G[i]) - p_4 * G[i] + p_5 * (G[i+1] + G[i-1] + 2*G[i+(n+1)] - 4 * T[i]) / delta_x**2 - p_6 * T[i] * G[i]
+            elif i % (n+1) == 0: #left boundary
+                equations_G[i] = p_3 * G[i] * (1 - G[i]) - p_4 * G[i] + p_5 * (2*G[i+1] + G[i-(n+1)] + G[i+(n+1)] - 4 * T[i]) / delta_x**2 - p_6 * T[i] * G[i]
+            elif i % (n+1) == n: #right boundary
+                equations_G[i] = p_3 * G[i] * (1 - G[i]) - p_4 * G[i] + p_5 * (2*G[i-1] + G[i-(n+1)] + G[i+(n+1)] - 4 * T[i]) / delta_x**2 - p_6 * T[i] * G[i]
+            elif i > n*(n+1): #lower boundary
+                equations_G[i] = p_3 * G[i] * (1 - G[i]) - p_4 * G[i] + p_5 * (G[i+1] + G[i-1] + 2*G[i-(n+1)] - 4 * T[i]) / delta_x**2 - p_6 * T[i] * G[i]
+            else:
+                equations_G[i] = p_3 * G[i] * (1 - G[i]) - p_4 * G[i] + p_5 * (G[i+1] + G[i-1] + G[i-(n+1)] + G[i+(n+1)] - 4 * T[i]) / delta_x**2 - p_6 * T[i] * G[i]
+    
+        return np.array(equations_G)
+
+    def rk4_step2D(T_n, G_n, dt, f_T, f_G, p, delta, n):
+        """
+        Perform one step of the fourth-order Runge-Kutta method.
+
+        Parameters:
+        - T_n, G_n: Current values of T and G at time step n.
+        - dt: Time step size.
+        - f: Function representing the right-hand side of the equation.
+
+        Returns:
+        - T_np1, G_np1: Values of T at the next time step (n+1).
+        """
+
+        k1_T = f_T(T_n, G_n, p, delta, n)
+        k1_G = f_G(T_n, G_n, p, delta, n)
+
+        k2_T = f_T(T_n + 0.5 * dt * k1_T, G_n + 0.5 * dt * k1_G, p, delta, n)
+        k2_G = f_G(T_n + 0.5 * dt * k1_T, G_n + 0.5 * dt * k1_G, p, delta, n)
+    
+        k3_T = f_T(T_n + 0.5 * dt * k2_T, G_n + 0.5 * dt * k2_G, p, delta, n)
+        k3_G = f_G(T_n + 0.5 * dt * k2_T, G_n + 0.5 * dt * k2_G, p, delta, n)
+
+        k4_T = f_T(T_n + dt * k3_T, G_n + dt * k3_G, p, delta, n)
+        k4_G = f_G(T_n + dt * k3_T, G_n + dt * k3_G, p, delta, n)
+
+
+
+        T_np1 = T_n + (dt / 6.0) * (k1_T + 2 * k2_T + 2 * k3_T + k4_T)
+        G_np1 = G_n + (dt / 6.0) * (k1_G + 2 * k2_G + 2 * k3_G + k4_G)
+
+        return T_np1, G_np1
+
+    """
+    Solve the time-dependent equation using the fourth-order Runge-Kutta method.
+
+    Parameters:
+    - F: Function representing the right-hand side of the equation.
+    - T_initial: Initial values of T.
+    - dt: Time step size.
+    - num_steps: Number of time steps to take.
+
+    Returns:
+    - T_values: Array containing the values of T at each time step.
+    """
+
+    T_values = [T_initial]
+    T_n = T_initial
+   
+    G_values = [T_initial]
+    G_n = G_initial
+
+    for _ in range(num_steps):
+        T_np1 = rk4_step2D(T_n, G_n, dt, f_T2D, f_G2D, p, delta, n)[0]
+        T_values.append(T_np1)
+        T_n = T_np1
+       
+       
+
+    for _ in range(num_steps):
+        G_np1 = rk4_step2D(T_n, G_n, dt, f_T2D, f_G2D, p, delta, n)[1]
+        G_values.append(G_np1)
+        G_n = G_np1
+       
+
+    return np.array(T_values), np.array(G_values)
+
 
 def f_2D(T, G, p, delta, n):
     p_1, p_2, p_3, p_4, p_5, p_6 = p
@@ -507,8 +616,6 @@ def J_2D(T, G, p, delta, n):
     
     return Jac
 
-
-
 def newton_raphson_system2D(f, J, initial_guess, tol=1e-6, max_iter=100):
     for i in range(max_iter):
         # Split initial guess into T and G
@@ -531,7 +638,6 @@ def newton_raphson_system2D(f, J, initial_guess, tol=1e-6, max_iter=100):
     
     raise RuntimeError("Newton-Raphson method did not converge within the maximum number of iterations.")
 
-# Initial guess
 def initial_guess_2D(xy_min, xy_max, n):
     x = np.linspace(xy_min[0], xy_max[0], n+1)
     y = np.linspace(xy_min[1], xy_max[1], n+1)
@@ -546,7 +652,8 @@ def initial_guess_2D(xy_min, xy_max, n):
         initial_guess[i] = 0.5 + 1* np.cos(variating[i-(n+1)*(n+1)])
     return initial_guess
 
-def simulation_with_fire(Initialisation1D, Initialisation2D, plot_solution1D, plot_solution_2D, fire, fire_starting_point = [5000,5000], fire_radius = [2000], dimension = 1):
+
+def simulation_with_fire(Initialisation1D, Initialisation2D, plot_solution1D, plot_solution_2D, fire, fire_starting_point = [5000,5000], fire_radius = [2000], dimension = 1, dt = 0.002, num_steps = 100):
     #Check dimension:
     if dimension == 1:
 
@@ -598,22 +705,58 @@ def simulation_with_fire(Initialisation1D, Initialisation2D, plot_solution1D, pl
     elif dimension == 2:
         dimension, p, L, n, xy_min, xy_max, delta = Initialisation2D()
         initial_guess = initial_guess_2D(xy_min, xy_max, n)
+        T_initial, G_initial = np.split(initial_guess, 2)
         solution = newton_raphson_system2D(f_2D, J_2D, initial_guess)
         T_solution, G_solution = np.split(solution, 2)
         #plot_solution_2D(T_solution, G_solution, n)
 
         for fire_rad in fire_radius:
-    
-
             solution_with_fire = fire(dimension, n, delta, solution, fire_starting_point, fire_radius)
+
             # Split solution into T and G
             T_afterfire, G_afterfire = np.split(solution_with_fire, 2)
-            plot_solution_2D(T_afterfire, G_afterfire, n)
+
+            T_values, G_values = solve_time_dependent_equation2D(T_initial, G_initial, dt, num_steps)
+
+            # Reshape T_values and G_values back into 2D grids
+            T_values_2d = T_values.reshape((num_steps+1, n+1, n+1))
+            G_values_2d = G_values.reshape((num_steps+1, n+1, n+1))
+
+            # Plot the evolution of T and G over time on a 2D grid
+            fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+            def update(frame):
+                ax[0].cla()
+                ax[1].cla()
+
+                im1 = ax[0].imshow(T_values_2d[frame], cmap='viridis', origin='lower', extent=[xy_min[0], xy_max[0], xy_min[0], xy_max[1]])
+                ax[0].set_title(f'Time Step {frame} (T)')
+                ax[0].set_xlabel('x')
+                ax[0].set_ylabel('y')
+
+                im2 = ax[1].imshow(G_values_2d[frame], cmap='viridis', origin='lower', extent=[xy_min[0], xy_max[0], xy_min[0], xy_max[1]])
+                ax[1].set_title(f'Time Step {frame} (G)')
+                ax[1].set_xlabel('x')
+                ax[1].set_ylabel('y')
+
+            # Create the animation
+            ani = FuncAnimation(fig, update, frames=num_steps+1, interval=100)
+            plt.show()
 
 
     else:
         print("Error: Something went wrong with the dimensions in the simulation_with_fire function.")
 
 
-simulation_with_fire(Initialisation1D, Initialisation2D, plot_solution1D, plot_solution_2D, fire, fire_starting_point, fire_radius, dimension = 1)
+
+#dimension, p, L, n, x_min, x_max, delta = Initialisation1D()
+dimension, p, L, n, xy_min, xy_max, delta = Initialisation2D()
+
+fire_starting_point = [L/2, L/2]
+fire_radius = [0.1*L]
+#simulation_with_fire(Initialisation1D, plot_solution1D, fire, fire_starting_point, fire_radius)
+
+
+simulation_with_fire(Initialisation1D, Initialisation2D, plot_solution1D, plot_solution_2D, fire, fire_starting_point, fire_radius, dimension = 2)
+
+
 
