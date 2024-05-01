@@ -2,17 +2,31 @@ import numpy as np
 import matplotlib.pyplot as plt
 import fipy as fp
 from fipy import CellVariable, Grid2D, Viewer, TransientTerm, DiffusionTerm
+from fipy import PeriodicGrid2D, CellVariable, Viewer
+from fipy.tools import numerix
+
+# Create a 2D grid with periodic boundary conditions
+mesh = PeriodicGrid2D(nx=100, ny=100, dx=0.01, dy=0.01)
+
+# Create cell variables for TildeT and TildeG
+TildeT = CellVariable(name="TildeT", mesh=mesh)
+TildeG = CellVariable(name="TildeG", mesh=mesh)
+
 
 # Define the size of the domain
-L, H = 10.0, 10.0  # arbitrary lengths for width and height
+L, H = 1.0, 1.0  # arbitrary lengths for width and height
 nx, ny = 40, 40  # number of grid points in x and y
 
 # Create a 2D mesh
 
-mesh = fp.Grid2D(nx=nx, ny=ny, dx=L/nx, dy=H/ny)
-TildeT = fp.CellVariable(name="T", mesh=mesh, hasOld=True)
-TildeG = fp.CellVariable(name="G", mesh=mesh, hasOld=True)
+#mesh = fp.Grid2D(nx=nx, ny=ny, dx=L/nx, dy=H/ny)
+mesh = PeriodicGrid2D(nx=nx, ny=ny, dx=L/nx, dy=L/ny)
 
+"""TildeT = fp.CellVariable(name="T", mesh=mesh, hasOld=True)
+TildeG = fp.CellVariable(name="G", mesh=mesh, hasOld=True)"""
+# Create cell variables for TildeT and TildeG
+TildeT = CellVariable(name="TildeT", mesh=mesh)
+TildeG = CellVariable(name="TildeG", mesh=mesh)
 gammaT = 0.75#0.7 #0.85
 gammaG = 1.6#0.4 #1.6
 DT = 3#1
@@ -46,23 +60,36 @@ eqTildeG = (fp.TransientTerm(var=TildeG) ==
             TildeG * (p4 + p5 * TildeT) +
             alpha_2 * fp.DiffusionTerm(coeff=1, var=TildeG))
 
-timeStepDuration = 0.002  # time step size
+timeStepDuration = 0.005  # time step size
 steps = 10000 # number of time steps
 
 x = np.linspace(0, L, nx*ny)
-TildeT.setValue(np.sin(x)+1)
-TildeG.setValue(np.cos(x)+1)
+#TildeT.setValue(np.sin(x)+1)
+#TildeG.setValue(np.cos(x)+1)
+#TildeT.setValue(np.random.rand(*x.shape))
+#TildeG.setValue(np.random.rand(*x.shape))
+# Set the initial conditions for TildeT and TildeG
+"""TildeT.setValue(numerix.random((mesh.nx, mesh.ny)))
+TildeG.setValue(numerix.random((mesh.nx, mesh.ny)))"""
+TildeT.setValue(numerix.random.random_sample((mesh.nx, mesh.ny)))
+TildeG.setValue(numerix.random.random_sample((mesh.nx, mesh.ny)))
+
 #TildeT.setValue(0.5)  # example initial condition
 #TildeG.setValue(0.7)  # example initial condition
-viewer = Viewer(vars=TildeT, datamin=0., datamax=1.)
 
+# Create viewers for TildeT and TildeG
+viewerT = Viewer(vars=TildeT)
+viewerG = Viewer(vars=TildeG)
 
 for step in range(steps):
     TildeT.updateOld()
     TildeG.updateOld()
     eqTildeT.solve(dt=timeStepDuration)
     eqTildeG.solve(dt=timeStepDuration)
-    viewer.plot()
+    
+    # Plot TildeT and TildeG separately
+    viewerT.plot()
+    viewerG.plot()
 
 
 
