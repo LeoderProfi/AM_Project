@@ -48,6 +48,8 @@ def Initialisation1D():
     num_steps = 100
 
     p = [muT/gammaT, sigmaT*KG/gammaT, gammaG/gammaT, muG/gammaT, DG/DT, sigmaG*KT/gammaT]
+    p = [muT/gammaT, 2, gammaG/gammaT, muG/gammaT, 4, sigmaG*KT/gammaT]
+
 
     alpha_1 = DT/(gammaT*L**2)
     alpha_2 = DG/(gammaT*L**2)
@@ -303,7 +305,7 @@ def initial_guess_func1(x_min, x_max, n):
         initial_guess[i] = 0.9
     return initial_guess
    
-def plot_solution1D(T_solution, G_solution, n, x_min, x_max, moment):
+def plot_solution1D(T_solution, G_solution, n, x_min, x_max, moment, save = False):
     x = np.linspace(x_min, x_max, n+1)
     plt.figure()
     plt.plot(x, T_solution, label='T')
@@ -312,12 +314,13 @@ def plot_solution1D(T_solution, G_solution, n, x_min, x_max, moment):
     plt.ylabel('Value')
     plt.legend()
     plt.tight_layout()
-    plt.savefig("./Pictures/1D_{}.pdf".format(moment))
+    if save:
+        plt.savefig("./Pictures/1D_{}.pdf".format(moment))
     plt.clf()
 
     #plt.show()
 
-def plot_solution_2D(T_solution, G_solution, n, moment):
+def plot_solution_2D(T_solution, G_solution, n, moment, save = False):
     x_vertices = (n+1)
     y_vertices = (n+1)
 
@@ -330,7 +333,8 @@ def plot_solution_2D(T_solution, G_solution, n, moment):
     plt.ylabel('y-axis')
     plt.xlabel('x-axis')
     plt.tight_layout()
-    plt.savefig("./Pictures/2D_{}_1.pdf".format(moment))
+    if save:
+        plt.savefig("./Pictures/2D_{}_1.pdf".format(moment))
     plt.clf()
 
     #plt.show()
@@ -770,8 +774,8 @@ def simulation_with_fire(Initialisation1D, Initialisation2D, plot_solution1D, pl
     else:
         print("Error: Something went wrong with the dimensions in the simulation_with_fire function.")
 
-#dimension, p, L, n, x_min, x_max, delta, alpha_1, alpha_2, dt, num_steps = Initialisation1D()
-dimension, p, L, n, xy_min, xy_max, delta, alpha_1, alpha_2, dt, num_steps = Initialisation2D()
+dimension, p, L, n, x_min, x_max, delta, alpha_1, alpha_2, dt, num_steps = Initialisation1D()
+#dimension, p, L, n, xy_min, xy_max, delta, alpha_1, alpha_2, dt, num_steps = Initialisation2D()
 
 fire_starting_point = [L/2, L/2]
 fire_radius = [0.1*L]
