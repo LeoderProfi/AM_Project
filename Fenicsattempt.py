@@ -2,7 +2,7 @@ import numpy as np
 import fipy as fp
 
 # Define the size of the domain
-L, H = 10.0, 10.0  # arbitrary lengths for width and height
+L, H = 10.0, 10.0  # arbitrary lengths for width and heigh# lo this code is dogshitt
 nx, ny = 100, 100  # number of grid points in x and y
 
 # Create a 2D mesh
