@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 p_1 = 0.083
 p_2 = 0.014
 p_3 = 0.638
-p_4 = 0.042999
+p_4 = 0.042
 p_5 = 8
 p_6 = 0.278
 
