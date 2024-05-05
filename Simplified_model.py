@@ -37,7 +37,8 @@ def fire(dimension, n_cells, delta, Solution, fire_starting_point, fire_radius):
 
 def Initialisation1D():
     dimension = 1
-    gammaT = 3.6; gammaG = 2.3; DT = 0.3; DG = 2.4; muT = 0.3; muG = 0.15; KT = 2.0; KG = 1.0; sigmaT = 0.05; sigmaG = 0.5
+    mu = 1
+    Lambda = 1
 
     L = 10000
     n = 100
@@ -46,19 +47,14 @@ def Initialisation1D():
 
     dt = 0.01
     num_steps = 100
-
-    p = [muT/gammaT, sigmaT*KG/gammaT, gammaG/gammaT, muG/gammaT, DG/DT, sigmaG*KT/gammaT]
-    p = [muT/gammaT, 2, gammaG/gammaT, muG/gammaT, 4, sigmaG*KT/gammaT]
-
-
-    alpha_1 = DT/(gammaT*L**2)
-    alpha_2 = DG/(gammaT*L**2)
     delta = (x_max - x_min) / n
-    return dimension, p, L, n, x_min, x_max, delta, alpha_1, alpha_2, dt, num_steps
+
+    return dimension, L, n, x_min, x_max, delta, mu, Lambda, dt, num_steps
 
 def Initialisation2D():
     dimension = 2
-    gammaT = 3.6; gammaG = 2.3; DT = 0.3; DG = 2.4; muT = 0.3; muG = 0.15; KT = 2.0; KG = 1.0; sigmaT = 0.05; sigmaG = 0.5
+    mu = 1
+    Lambda = 1
 
     L = 1000
     n =40
@@ -69,35 +65,21 @@ def Initialisation2D():
     xy_min = [0, 0]
     xy_max = [L, L]
 
-    p = [muT/gammaT, sigmaT*KG/gammaT, gammaG/gammaT, muG/gammaT, DG/DT, sigmaG*KT/gammaT]
-
-    alpha_1 = DT/(gammaT*L**2)
-    alpha_2 = DG/(gammaT*L**2)
     delta = np.zeros(dimension)
     delta[0] = (xy_max[0] - xy_min[0]) / n
     delta[1] = (xy_max[1] - xy_min[1]) / n
-    return dimension, p, L, n, xy_min, xy_max, delta, alpha_1, alpha_2, dt, num_steps
+    return dimension, L, n, xy_min, xy_max, delta, mu, Lambda, dt, num_steps
 
-def solve_time_dependent_equation(T_initial, G_initial, dt, num_steps, p, delta, n, alpha_1, alpha_2):
-    def f_T(T, G, p, delta, n,alpha_1,alpha_2):
-        p_1, p_2, p_3, p_4, p_5, p_6 = p
+def solve_time_dependent_equation(T_initial, G_initial, dt, num_steps, mu, Lambda, L, delta, n):
+    def f_T(T, mu, Lambda, L, delta, n):
         delta_x = delta
-        # Generate the system of equations in T
-        equations_T = [T[i] * (1 - T[i]) - p_1 * T[i] + alpha_1*(T[i+1] - 2 * T[i] + T[i-1]) / delta_x**2 - p_2 * T[i] * G[i] for i in range(1, n)]
-        equations_T.insert(0, T[0] * (1 - T[0]) - p_1 * T[0] + alpha_1*(2 * T[1] - 2 * T[0]) / delta_x**2 - p_2 * T[0] * G[0])  # Equation for i = 0    
-        equations_T.append(T[-1] * (1 - T[-1]) - p_1 * T[-1] + alpha_1*(2 * T[-2] - 2 * T[-1]) / delta_x**2 - p_2 * T[-1] * G[-1])  # Equation for i = n      
+        # Generate the system of equations in T (RHO IN PAPER)
+        equations_T = [(1-mu)*T[i] + (Lambda -1)* T[i]**2 - T[i]**3 + (1/2)*(L**2-T[i])* (T[i+1]-T[i-1])/(2*delta_x) - (1/8)*T[i]*(T[i+1] - 2 * T[i] + T[i-1]) / delta_x**2 for i in range(1, n)]
+        equations_T.insert(0, (1-mu)*T[0] + (Lambda -1)* T[0]**2 - T[0]**3 - (1/8)*T[0]*(2*T[1] - 2 * T[0]) / delta_x**2)  # Equation for i = 0    #NEUMANN BC
+        equations_T.append((1-mu)*T[-1] + (Lambda -1)* T[-1]**2 - T[-1]**3 - (1/8)*T[-1]*(2*T[-2] - 2 * T[-1]) / delta_x**2)  # Equation for i = n      
         return np.array(equations_T)
 
-    def f_G(T, G, p, delta, n,alpha_1,alpha_2):
-        p_1, p_2, p_3, p_4, p_5, p_6 = p
-        delta_x = delta
-                # Generate the system of equations in G 
-        equations_G = [p_3 * G[i] * (1 - G[i]) - p_4 * G[i] + alpha_2 * (G[i+1] - 2 * G[i] + G[i-1]) / delta_x**2 - p_6 * T[i] * G[i] for i in range(1, n)]
-        equations_G.insert(0, p_3 * G[0] * (1 - G[0]) - p_4 * G[0] + alpha_2 * (2 * G[1] - 2 * G[0]) / delta_x**2 - p_6 * T[0] * G[0])  # Equation for i = 0    
-        equations_G.append(p_3 * G[-1] * (1 - G[-1]) - p_4 * G[-1] + alpha_2 * (-2 * G[-1] + 2 * G[-2]) / delta_x**2 - p_6 * T[-1] * G[-1])  # Equation for i = n      
-        return np.array(equations_G)
-
-    def rk4_step(T_n, G_n, dt, f_T, f_G, p, delta, n, alpha_1,alpha_2):
+    def rk4_step(T_n, dt, f_T, mu, Lambda, L, delta, n):
         """
         Perform one step of the fourth-order Runge-Kutta method.
 
@@ -110,22 +92,16 @@ def solve_time_dependent_equation(T_initial, G_initial, dt, num_steps, p, delta,
         - T_np1, G_np1: Values of T at the next time step (n+1).
         """
 
-        k1_T = f_T(T_n, G_n, p, delta, n,alpha_1,alpha_2)
-        k1_G = f_G(T_n, G_n, p, delta, n,alpha_1,alpha_2)
+        k1_T = f_T(T_n, mu, Lambda, L, delta, n)
 
-        k2_T = f_T(T_n + 0.5 * dt * k1_T, G_n + 0.5 * dt * k1_G, p, delta, n,alpha_1,alpha_2)
-        k2_G = f_G(T_n + 0.5 * dt * k1_T, G_n + 0.5 * dt * k1_G, p, delta, n,alpha_1,alpha_2)
+        k2_T = f_T(T_n + 0.5 * dt * k1_T, mu, Lambda, L, delta, n)
         
-        k3_T = f_T(T_n + 0.5 * dt * k2_T, G_n + 0.5 * dt * k2_G, p, delta, n, alpha_1, alpha_2)
-        k3_G = f_G(T_n + 0.5 * dt * k2_T, G_n + 0.5 * dt * k2_G, p, delta, n, alpha_1, alpha_2)
+        k3_T = f_T(T_n + 0.5 * dt * k2_T, mu, Lambda, L, delta, n)
 
-        k4_T = f_T(T_n + dt * k3_T, G_n + dt * k3_G, p, delta, n, alpha_1, alpha_2)
-        k4_G = f_G(T_n + dt * k3_T, G_n + dt * k3_G, p, delta, n, alpha_1, alpha_2)
+        k4_T = f_T(T_n + dt * k3_T, mu, Lambda, L, delta, n)
 
         T_np1 = T_n + (dt / 6.0) * (k1_T + 2 * k2_T + 2 * k3_T + k4_T)
-        G_np1 = G_n + (dt / 6.0) * (k1_G + 2 * k2_G + 2 * k3_G + k4_G)
-
-        return T_np1, G_np1
+        return T_np1
 
     """
     Solve the time-dependent equation using the fourth-order Runge-Kutta method.
@@ -139,134 +115,51 @@ def solve_time_dependent_equation(T_initial, G_initial, dt, num_steps, p, delta,
     Returns:
     - T_values: Array containing the values of T at each time step.
     """
-
     T_values = [T_initial]
     T_n = T_initial
-    
-    G_values = [T_initial]
-    G_n = G_initial
 
     for _ in range(num_steps):
-        T_np1 = rk4_step(T_n, G_n, dt, f_T, f_G, p, delta, n, alpha_1,alpha_2)[0]
+        T_np1 = rk4_step(T_n, dt, f_T, mu, Lambda, L, delta, n)
         T_values.append(T_np1)
         T_n = T_np1
 
+    return np.array(T_values)
 
-    for _ in range(num_steps):
-        G_np1 = rk4_step(T_n, G_n, dt, f_T, f_G, p, delta, n, alpha_1,alpha_2)[1]
-        G_values.append(G_np1)
-        G_n = G_np1
-        
+def f(T, mu, Lambda, L, delta, n): ### NOTE THAT THIS IS THE SAME AS F_T, CAN BE WRITTEN DOWN MORE EFFICIENTLY
+        delta_x = delta
+        # Generate the system of equations in T (RHO IN PAPER)
+        equations_T = [(1-mu)*T[i] + (Lambda -1)* T[i]**2 - T[i]**3 + (1/2)*(L**2-T[i])* (T[i+1]-T[i-1])/(2*delta_x) - (1/8)*T[i]*(T[i+1] - 2 * T[i] + T[i-1]) / delta_x**2 for i in range(1, n)]
+        equations_T.insert(0, (1-mu)*T[0] + (Lambda -1)* T[0]**2 - T[0]**3 - (1/8)*T[0]*(2*T[1] - 2 * T[0]) / delta_x**2)  # Equation for i = 0    #NEUMANN BC
+        equations_T.append((1-mu)*T[-1] + (Lambda -1)* T[-1]**2 - T[-1]**3 - (1/8)*T[-1]*(2*T[-2] - 2 * T[-1]) / delta_x**2)  # Equation for i = n      
+        return np.array(equations_T)
 
-    return np.array(T_values), np.array(G_values)
-
-def f(T, G, p, delta, n, alpha_1, alpha_2):
+def J(T, mu, Lambda, L, delta, n):
     delta_x = delta
-    p_1, p_2, p_3, p_4, p_5, p_6 = p
-    # Generate the system of equations in T
-    equations_T = [T[i] * (1 - T[i]) - p_1 * T[i] + alpha_1*(T[i+1] - 2 * T[i] + T[i-1]) / delta_x**2 - p_2 * T[i] * G[i] for i in range(1, n)]
+    jac_matrix = np.zeros((n+1, n+1))
+
+    for i in range(1, n):
+            jac_matrix[i, i] = 1-mu + 2*(Lambda -1)*T[i] - 3*T[i]**2  / delta_x**2  - (1/2)*T[i]* (T[i+1]-T[i-1])/(2*delta_x) - (1/8)*(T[i+1] + T[i-1] - 4*T[i]) / delta_x**2
+            jac_matrix[i, i-1] =  - (1/2)*(L**2-T[i])/(2*delta_x) - (1/8)*T[i]/ delta_x**2
+            jac_matrix[i, i+1] = (1/2)*(L**2-T[i])/(2*delta_x) - (1/8)*T[i]/ delta_x**2
+
+    # Jacobian for i = 0
     i = 0
-    equations_T.insert(0, T[i] * (1 - T[i]) - p_1 * T[i] + alpha_1*(2 * T[i+1] - 2 * T[i]) / delta_x**2 - p_2 * T[i] * G[i])  # Equation for i = 0    
+    jac_matrix[i, i+1] = - 2*(1/8)*T[i]/ delta_x**2
+    jac_matrix[i, i] = 1-mu + 2*(Lambda -1)*T[i] - 3*T[i]**2  / delta_x**2  - (1/8)*(2* T[i+1] - 4*T[i]) / delta_x**2
+    
+    # Jacobian for i = n
     i = n
-    equations_T.append(T[i] * (1 - T[i]) - p_1 * T[i] + alpha_1*(2 * T[i-1] - 2 * T[i]) / delta_x**2 - p_2 * T[i] * G[i])  # Equation for i = n      
+    jac_matrix[i, i-1] = - 2*(1/8)*T[i]/ delta_x**2
+    jac_matrix[i, i] = 1-mu + 2*(Lambda -1)*T[i] - 3*T[i]**2  / delta_x**2  - (1/8)*(2* T[i-1] - 4*T[i]) / delta_x**2
 
-    # Generate the system of equations in G
-    equations_G = [p_3 * G[i] * (1 - G[i]) - p_4 * G[i] + alpha_2 * (G[i+1] - 2 * G[i] + G[i-1]) / delta_x**2 - p_6 * T[i] * G[i] for i in range(1, n)]
-    i = 0
-    equations_G.insert(0, p_3 * G[i] * (1 - G[i]) - p_4 * G[i] + alpha_2 * (2 * G[i+1] - 2 * G[i]) / delta_x**2 - p_6 * T[i] * G[i])  # Equation for i = 0    
-    i = n
-    equations_G.append(p_3 * G[i] * (1 - G[i]) - p_4 * G[i] + alpha_2 * (-2 * G[i] + 2 * G[i-1]) / delta_x**2 - p_6 * T[i] * G[i])  # Equation for i = n      
-    return equations_T + equations_G
+    return jac_matrix
 
-def J(T, G, p, delta, n, alpha_1, alpha_2):
-    def J_eq_1_T(T, G, p, delta, n, alpha_1, alpha_2):
-        p_1, p_2, p_3, p_4, p_5, p_6 = p
-        delta_x = delta
-        # Generate the Jacobian matrix
-        jac_matrix = np.zeros((n+1, n+1))
-    
-        for i in range(1, n):
-            jac_matrix[i, i] = 1 - 2 * T[i] - p_1 - (2 * alpha_1) / delta_x**2 - p_2 * G[i]
-            jac_matrix[i, i-1] = alpha_1 / delta_x**2
-            jac_matrix[i, i+1] = alpha_1 / delta_x**2
-
-        # Jacobian for i = 0
-        i = 0
-        jac_matrix[i, i+1] = (2 * alpha_1) / delta_x**2
-        jac_matrix[i, i] = 1 - 2 * T[i] - p_1 - (2 * alpha_1) / delta_x**2 - p_2 * G[i]
-    
-        # Jacobian for i = n
-        i = n
-        jac_matrix[i, i-1] = (2 * alpha_1) / delta_x**2
-        jac_matrix[i, i] = 1 - 2 * T[i] - p_1 - (2 * alpha_1) / delta_x**2 - p_2 * G[i]
-
-        return jac_matrix
-
-    def J_eq_1_G(T, G, p, delta, n, alpha_1, alpha_2):
-        p_1, p_2, p_3, p_4, p_5, p_6 = p
-        delta_x = delta
-        # Generate the Jacobian matrix
-        jac_matrix = np.zeros((n+1, n+1))
-        for i in range(0, n+1):
-            jac_matrix[i, i] = -p_2 * T[i]
-        return jac_matrix
-
-    def J_eq_2_T(T, G, p, delta, n, alpha_1, alpha_2):
-        p_1, p_2, p_3, p_4, p_5, p_6 = p
-        delta_x = delta
-        # Generate the Jacobian matrix
-        jac_matrix = np.zeros((n+1, n+1))
-        for i in range(0, n+1):
-            jac_matrix[i, i] = -p_6 * G[i]
-        return jac_matrix
-
-    def J_eq_2_G(T, G, p, delta, n, alpha_1, alpha_2):
-        p_1, p_2, p_3, p_4, p_5, p_6 = p
-        delta_x = delta
-        # Generate the Jacobian matrix
-        jac_matrix = np.zeros((n+1, n+1))
-   
-        for i in range(1, n):
-            jac_matrix[i, i] = p_3 - 2 * p_3 * G[i] - p_4 - (2 * alpha_2) / delta_x**2 - p_6 * T[i]
-            jac_matrix[i, i-1] = alpha_2 / delta_x**2
-            jac_matrix[i, i+1] = alpha_2 / delta_x**2
-
-        # Jacobian for i = 0
-        i = 0
-        jac_matrix[i, i+1] = (2 * alpha_2) / delta_x**2
-        jac_matrix[i, i] = p_3 - 2 * p_3 * G[i] - p_4 - (2 * alpha_2) / delta_x**2 - p_6 * T[i]
-    
-        # Jacobian for i = n
-        i = n
-        jac_matrix[i, i-1] = (2 * alpha_2) / delta_x**2
-        jac_matrix[i, i] = p_3 - 2 * p_3 * G[i] - p_4 - (2 * alpha_2) / delta_x**2 - p_6 * T[i]
-
-        return jac_matrix
-
-    Jac_eq_1_T = J_eq_1_T(T, G, p, delta, n, alpha_1, alpha_2)
-    Jac_eq_1_G = J_eq_1_G(T, G, p, delta, n, alpha_1, alpha_2)
-    Jac_eq_2_T = J_eq_2_T(T, G, p, delta, n, alpha_1, alpha_2)
-    Jac_eq_2_G = J_eq_2_G(T, G, p, delta, n, alpha_1, alpha_2)
-
-    # Create a larger matrix to hold the combined result
-    Jac = np.zeros((2 * (n+1), 2 * (n+1)))
-
-    # Insert matrices into appropriate positions
-    Jac[:n+1, :n+1] = Jac_eq_1_T  # Left upper part
-    Jac[:n+1, n+1:] = Jac_eq_1_G  # Right upper part
-    Jac[n+1:, :n+1] = Jac_eq_2_T  # Left lower part
-    Jac[n+1:, n+1:] = Jac_eq_2_G  # Right lower part
-
-    return Jac
-
-def newton_raphson_system(f, J, p, delta, n, alpha_1, alpha_2, initial_guess, tol=1e-6, max_iter=10000):
+def newton_raphson_system(f, J, mu, Lambda, L, delta, n, initial_guess, tol=1e-6, max_iter=10000):
     for i in range(max_iter):
-        # Split initial guess into T and G
-        T, G = np.split(initial_guess, 2)
-
+        T = initial_guess
         # Evaluate the system of equations and the Jacobian at the current point
-        f_val = np.array(f(T, G, p, delta, n, alpha_1, alpha_2))
-        J_val = np.array(J(T, G, p, delta, n, alpha_1, alpha_2))
+        f_val = np.array(f(T, mu, Lambda, L, delta, n))
+        J_val = np.array(J(T, mu, Lambda, L, delta, n))
 
         # Solve the linear system to get the update
         delta_T_G = spsolve(J_val, -f_val)
@@ -305,11 +198,10 @@ def initial_guess_func1(x_min, x_max, n):
         initial_guess[i] = 0.9
     return initial_guess
    
-def plot_solution1D(T_solution, G_solution, n, x_min, x_max, moment, save = False):
+def plot_solution1D(T_solution, n, x_min, x_max, moment, save = False):
     x = np.linspace(x_min, x_max, n+1)
     plt.figure()
     plt.plot(x, T_solution, label='T')
-    plt.plot(x, G_solution, label='G')
     plt.xlabel('x')
     plt.ylabel('Value')
     plt.legend()
@@ -320,12 +212,11 @@ def plot_solution1D(T_solution, G_solution, n, x_min, x_max, moment, save = Fals
 
     #plt.show()
 
-def plot_solution_2D(T_solution, G_solution, n, moment, save = False):
+def plot_solution_2D(T_solution, n, moment, save = False):
     x_vertices = (n+1)
     y_vertices = (n+1)
 
     T_reshaped = np.reshape(T_solution, (x_vertices,y_vertices))
-    G_reshaped = np.reshape(G_solution, (x_vertices,y_vertices))
 
     plt.figure()
     plt.imshow(T_reshaped, extent = [0,1,1,0])
@@ -339,16 +230,9 @@ def plot_solution_2D(T_solution, G_solution, n, moment, save = False):
 
     #plt.show()
 
-    plt.figure()
-    plt.imshow(G_reshaped, extent = [0,1,1,0])
-    plt.colorbar()
-    plt.ylabel('y-axis')
-    plt.xlabel('x-axis')
-    plt.tight_layout()
-    plt.savefig("./Pictures/2D_{}_2.pdf".format(moment))
-    plt.clf()
 
-    #plt.show()
+
+##### I HAVE CHANGED IT UNTILL HERE, SO I DID THE 1D CASE #####
 
 def solve_time_dependent_equation2D(T_initial, G_initial, p, delta, n, alpha_1, alpha_2, dt, num_steps):
     def f_T2D(T, G, p, delta, n, alpha_1, alpha_2):
@@ -678,28 +562,25 @@ def simulation_with_fire(Initialisation1D, Initialisation2D, plot_solution1D, pl
     if dimension == 1:
 
         #Initialisation of the parameters
-        dimension, p, L, n, x_min, x_max, delta, alpha_1, alpha_2, dt, num_steps = Initialisation1D()
+        dimension, L, n, x_min, x_max, delta, mu, Lambda, dt, num_steps = Initialisation1D()
         #Initial guess
         initial_guess = initial_guess_func(x_min, x_max, n)
-        T_initial, G_initial = np.split(initial_guess, 2)
-        plot_solution1D(T_initial, G_initial, n, x_min, x_max, moment = "Initial")
+        plot_solution1D(initial_guess, n, x_min, x_max, moment = "Initial")
 
 
         #Solve the system
-        solution = newton_raphson_system(f, J, p, delta, n, alpha_1, alpha_2, initial_guess)
+        solution = newton_raphson_system(f, J, mu, Lambda, L, delta, n, initial_guess)
         #solution = initial_guess
         #Split solution into T and G
-        T_solution, G_solution = np.split(solution, 2)
         #Plot the results
-        plot_solution1D(T_solution, G_solution, n, x_min, x_max, moment = "NR_first")
+        plot_solution1D(solution, n, x_min, x_max, moment = "NR_first")
         # Add Fire
         for fire_rad in fire_radius:
             solution_with_fire = fire(dimension, n, delta, solution, fire_starting_point, fire_rad)
             # Split solution into T and G
-            T_afterfire, G_afterfire = np.split(solution_with_fire, 2)
             # Plot the results
-            plot_solution1D(T_afterfire, G_afterfire, n, x_min, x_max, moment = "After Fire")
-            T_values, G_values = solve_time_dependent_equation(T_afterfire, G_afterfire, dt, num_steps, p, delta, n, alpha_1, alpha_2)
+            plot_solution1D(solution_with_fire, n, x_min, x_max, moment = "After Fire")
+            T_values, G_values = solve_time_dependent_equation(solution_with_fire, dt, num_steps, mu, Lambda, L, delta, n)
             x = np.linspace(x_min, x_max, n+1)
             # Plot the evolution of T and G over time on the same plot
             def update(frame):
@@ -707,7 +588,6 @@ def simulation_with_fire(Initialisation1D, Initialisation2D, plot_solution1D, pl
 
                 # Plot T and G for the current frame
                 plt.plot(x, T_values[frame], label=f'Time Step {frame} (T)', linestyle='-')
-                plt.plot(x, G_values[frame], label=f'Time Step {frame} (G)', linestyle='-')
                 
                 # Set y-axis limits to ensure they remain fixed
                 plt.ylim(0, 1)
@@ -715,7 +595,7 @@ def simulation_with_fire(Initialisation1D, Initialisation2D, plot_solution1D, pl
                 # Customize plot
                 plt.xlabel('x')
                 plt.ylabel('Value')
-                plt.title('Evolution of T and G over Time')
+                plt.title('Evolution of T over Time')
                 plt.legend()
 
             
@@ -774,7 +654,7 @@ def simulation_with_fire(Initialisation1D, Initialisation2D, plot_solution1D, pl
     else:
         print("Error: Something went wrong with the dimensions in the simulation_with_fire function.")
 
-dimension, p, L, n, x_min, x_max, delta, alpha_1, alpha_2, dt, num_steps = Initialisation1D()
+dimension, L, n, x_min, x_max, delta, mu, Lambda, dt, num_steps = Initialisation1D()
 #dimension, p, L, n, xy_min, xy_max, delta, alpha_1, alpha_2, dt, num_steps = Initialisation2D()
 
 fire_starting_point = [L/2, L/2]
