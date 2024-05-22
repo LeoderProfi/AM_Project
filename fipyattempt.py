@@ -67,13 +67,14 @@ x = np.linspace(0, L, nx*ny)
 #TildeT.setValue(np.sin(x)+1)
 #TildeG.setValue(np.cos(x)+1)
 #TildeT.setValue(np.random.rand(*x.shape))
+
 #TildeG.setValue(np.random.rand(*x.shape))
 # Set the initial conditions for TildeT and TildeG
-"""TildeT.setValue(numerix.random((mesh.nx, mesh.ny)))
-TildeG.setValue(numerix.random((mesh.nx, mesh.ny)))"""
-TildeT.setValue(numerix.random.random_sample((mesh.nx, mesh.ny)))
-TildeG.setValue(numerix.random.random_sample((mesh.nx, mesh.ny)))
+#TildeT.setValue(numerix.random((mesh.nx, mesh.ny)))
+#TildeG.setValue(numerix.random((mesh.nx, mesh.ny)))
 
+TildeT.setValue(numerix.random.random_sample((mesh.nx, mesh.ny)).ravel())
+TildeG.setValue(numerix.random.random_sample((mesh.nx, mesh.ny)).ravel())
 #TildeT.setValue(0.5)  # example initial condition
 #TildeG.setValue(0.7)  # example initial condition
 
