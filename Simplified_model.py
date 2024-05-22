@@ -15,7 +15,7 @@ def fire(dimension, n_cells, delta, Solution, fire_starting_point, fire_radius):
         distance = np.abs(X - fire_starting_index_x) #Calculate the distance from the starting point in which the fire should be active
         mask = distance <= fire_radius/delta #Create a mask for the cells that should be affected by the fire
         ST[mask] = 0.5 * ST[mask] #Set the Tree concentration of the cells affected by the fire to 0
-        SG[mask] = 0.0 #Set the gras concentration of the cells affected by the fire to 0
+       # SG[mask] = 0.0 #Set the gras concentration of the cells affected by the fire to 0
         return np.concatenate((ST, SG))
     elif dimension == 2:
         n_x = n_cells
