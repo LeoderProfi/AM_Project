@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.sparse.linalg import spsolve
 import matplotlib.pyplot as plt
-
+#comments by barber
 p_1 = 0.083
 p_2 = 0.014
 p_3 = 0.638
