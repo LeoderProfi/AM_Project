@@ -38,7 +38,7 @@ p5 = sigmaG*KT/gammaT
 p6 = DG/DT
 
 p2=2
-p6=4
+p6=1/2
 
 
 print(p3/p2 < (p3-p4)/(1-p1))
@@ -82,16 +82,24 @@ for i in range(4):
         dn = a2 - d*(n*np.pi/L)**2
         frac = (cn + dn)/2
         lambdan_1 = frac + np.sqrt(frac**2 + b1*b2 - cn*dn)
+        if (type(lambdan_1) != 'float' or type(lambdan_2) != 'float'):
+            print('Nannetje!')
+            break
         lambdan_2 = frac - np.sqrt(frac**2 + b1*b2 - cn*dn)
         lambdalist[i][0].append(lambdan_1.real)
+        # if lambdan_1.real == Nan or lambdan_2.real == Nan:
+        #     print('Nannetje! in real')
+        #     break
         lambdalist[i][1].append(lambdan_2.real)
+    
     plt.figure()
     plt.plot(nlist,lambdalist[i][0], label = 'Re(first eigenvalue)')
     plt.plot(nlist,lambdalist[i][1], label = 'Re(second eigenvalue)')
-    plt.plot([min(nlist), max(nlist)],[0,0], color = 'gray')
+    # plt.plot([min(nlist), max(nlist)],[0,0], color = 'gray')
     plt.legend()
     plt.title('u_' + str(i+1))
     plt.show()
+print(lambdalist[3])
 
 N=1000
 nlist = np.linspace(0,N,N+1)
