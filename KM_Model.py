@@ -69,7 +69,7 @@ def Initialisation1D_new():
 
     # Time parameters 
     dt = 1.1*(10**-4) # Time step size 
-    num_steps = 100000  # Number of time steps 
+    num_steps = 100000  # Number of time steps we need these many because its a slow process :(
 
     p = { 
         'A': A, 

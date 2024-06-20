@@ -655,7 +655,6 @@ def initial_guess_2D(xy_min, xy_max, n):
         initial_guess[i] = 0.5 + 1* np.cos(variating[i-(n+1)*(n+1)])
     return initial_guess
 
-
 def fire(dimension, n_cells, delta, Solution, fire_starting_point, fire_radius):
     #check dimensions:
     if dimension == 1:
